@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <avr/wdt.h>
+
+#include "table.h"
 
 constexpr uint8_t ledPin = 13;
 
@@ -13,4 +16,6 @@ void setup() {
     while (!Serial);
 }
 
-void loop() {}
+void loop() {
+    wdt_reset();
+}

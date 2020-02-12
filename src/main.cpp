@@ -20,7 +20,7 @@ constexpr uint8_t ledPin = 13;
 
 // MCP4725 DAC I2C addressing.
 constexpr uint8_t dacAddress0 = LOW;
-constexpr uint8_t dacAddress = 0x60 | dacAddress0;
+constexpr uint8_t dacAddress = 0x62 | dacAddress0;
 
 Adafruit_MCP4725 dac;
 OneWire oneWire(dallasDataPin);

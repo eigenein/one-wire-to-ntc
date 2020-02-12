@@ -27,6 +27,8 @@ OneWire oneWire(dallasDataPin);
 DallasTemperature sensors(&oneWire);
 DeviceAddress dallasAddress;
 
+uint16_t dacValue = 2048; // 0.5 Vcc
+
 void setupLED() {
     digitalWrite(ledPin, LOW);
     pinMode(ledPin, OUTPUT);
@@ -53,7 +55,7 @@ void setupDAC() {
     pinMode(dacVccPin, OUTPUT);
     digitalWrite(dacVccPin, HIGH);
     dac.begin(dacAddress);
-    dac.setVoltage(2048, true); // 0.5 Vcc
+    dac.setVoltage(dacValue, true);
 }
 
 void printDallasAddress(DeviceAddress deviceAddress) {
@@ -100,23 +102,37 @@ void setup() {
     Serial.println("Successfully started up.");
 }
 
+float rawTemperatureToADC(const int16_t rawTemperature) {
+    return pgm_read_float_near(&(TABLE[rawTemperature & 0xFFF]));
+}
+
+/*
+ * Using my own implementation because I need the real raw temperature,
+ * not the one provided by DallasTemperature.
+ */
+int16_t getRawTemperature() {
+    uint8_t scratchPad[9];
+    if (!sensors.isConnected(dallasAddress, scratchPad)) {
+        // The power-on reset value.
+        return 0x0550;
+    }
+    // FIXME: this doesn't work with DS18S20.
+    return (((int16_t)scratchPad[1]) << 8) | ((int16_t)scratchPad[0]);
+}
+
 void loop() {
     sensors.requestTemperatures();
-    const int16_t rawTemperature = sensors.getTemp(dallasAddress);
-    if (rawTemperature == 10880) {
-        Serial.println("Waiting for the sensor startup.");
-        delay(50);
-        return;
+    const int16_t rawTemperature = getRawTemperature();
+    if (rawTemperature != 0x0550) {
+        dacValue = rawTemperatureToADC(rawTemperature);
+        dac.setVoltage(dacValue, false);
     }
 
-    const uint16_t dacValue = 2048; // TODO: temperature-to-DAC mapping.
-    dac.setVoltage(dacValue, false);
-
     Serial.print("raw: ");
-    Serial.print(rawTemperature);
+    Serial.print(rawTemperature, HEX);
     Serial.print(" | ");
     Serial.print("temp C: ");
-    Serial.print(sensors.rawToCelsius(rawTemperature));
+    Serial.print(rawTemperature / 16.0);
     Serial.print(" | ");
     Serial.print("DAC: ");
     Serial.print(dacValue);
